@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>울산 에코 내비게이션 (도착 알림 & 하차 시스템)</title>
+    <title>울산 에코 내비게이션 (Pro Max)</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <style>
         body { margin: 0; font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; overflow: hidden; background: #e9ecef; }
@@ -15,86 +15,98 @@
             display: flex; justify-content: center; align-items: center;
         }
         .setup-box {
-            background: white; width: 90%; max-width: 500px; padding: 30px;
-            border-radius: 15px; box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-            max-height: 90vh; overflow-y: auto;
+            background: white; width: 90%; max-width: 550px; padding: 30px;
+            border-radius: 15px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); max-height: 90vh; overflow-y: auto;
         }
         .setup-box h2 { margin-top: 0; color: #1a3673; }
         .input-row { display: flex; gap: 10px; margin-bottom: 12px; align-items: center; }
-        .input-row input[type="text"] { flex: 2; padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
-        .input-row input[type="number"] { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
-        .btn-start { width: 100%; padding: 15px; background: #2e86de; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 15px; }
-        
-        /* --- 내비게이션 상단 패널 --- */
+        .input-row input, .input-row select { padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 15px; }
+        .input-row input[type="text"] { flex: 2; }
+        .input-row input[type="number"] { flex: 1; }
+        .route-select { width: 100%; padding: 12px; margin-top: 15px; font-weight: bold; background: #f1f2f6; border-radius: 8px; border: 2px solid #2e86de; }
+        .btn-start { width: 100%; padding: 15px; background: #2e86de; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 15px; transition: 0.2s;}
+        .btn-start:hover { background: #192a56; }
+
+        /* --- 좌측 상단 TBT 패널 --- */
         #top-navi-panel {
             position: absolute; top: 20px; left: 20px; z-index: 1000;
-            background: #1a3673; color: white; width: 340px;
-            border-radius: 12px; box-shadow: 0 10px 20px rgba(0,0,0,0.3); display: none;
+            background: #1a3673; color: white; width: 340px; border-radius: 12px; box-shadow: 0 10px 20px rgba(0,0,0,0.3); display: none;
         }
         .direction-box { padding: 20px; display: flex; align-items: center; border-bottom: 1px solid #2c4c94; }
-        .turn-arrow { font-size: 55px; margin-right: 20px; font-weight: bold; color: #00d2ff; }
+        .turn-arrow { font-size: 50px; margin-right: 20px; color: #00d2ff; font-weight: 900; }
         .dist-text { font-size: 40px; font-weight: bold; letter-spacing: -1px; }
         .dist-unit { font-size: 20px; font-weight: normal; }
-        .road-name { padding: 15px 20px; font-size: 22px; font-weight: bold; background: #142a5c; }
+        .road-name { padding: 15px 20px; font-size: 20px; font-weight: bold; background: #142a5c; }
         .next-turn { padding: 10px 20px; font-size: 15px; background: #0f1f45; color: #a4b0be; }
-        
-        /* 배속 컨트롤 */
-        #speed-controls { position: absolute; top: 20px; right: 20px; z-index: 1000; display: none; gap: 10px; background: rgba(255,255,255,0.9); padding: 10px; border-radius: 30px; }
-        .speed-btn { border: none; background: #f1f3f5; padding: 10px 15px; border-radius: 20px; font-weight: bold; cursor: pointer; transition: 0.2s;}
-        .speed-btn.active { background: #ff4757; color: white; }
 
-        /* 하단 상태바 */
+        /* --- 우측 배속 및 에코 패널 --- */
+        #right-panel { position: absolute; top: 20px; right: 20px; z-index: 1000; display: none; flex-direction: column; gap: 15px; align-items: flex-end; }
+        .speed-controls { display: flex; gap: 5px; background: rgba(255,255,255,0.9); padding: 8px; border-radius: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+        .speed-btn { border: none; background: #f1f3f5; padding: 10px 15px; border-radius: 20px; font-weight: bold; cursor: pointer; }
+        .speed-btn.active { background: #ff4757; color: white; }
+        
+        .eco-stats { background: rgba(255,255,255,0.95); padding: 15px 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); border-left: 5px solid #2ed573; text-align: right; min-width: 150px; }
+        .eco-stats div { margin-bottom: 5px; font-weight: bold; color: #2f3640; }
+        .eco-val { color: #2ed573; font-size: 22px; }
+
+        /* --- 하단 상태 패널 --- */
         #bottom-panel {
             position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 1000;
-            background: white; width: 90%; max-width: 650px; border-radius: 16px; display: none;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2); justify-content: space-between; padding: 20px; align-items: center;
+            background: white; width: 90%; max-width: 600px; border-radius: 16px; display: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3); justify-content: space-around; padding: 20px; align-items: center;
         }
         .info-block { text-align: center; }
         .info-val { font-size: 26px; font-weight: 800; color: #2f3640; }
         .info-label { font-size: 13px; color: #7f8fa6; font-weight: 600; margin-top: 5px; }
-        
+
+        /* --- "잠시 후" 알림 (TBT Overlay) --- */
+        #tbt-alert {
+            position: absolute; top: 250px; left: 50%; transform: translateX(-50%);
+            background: rgba(255, 71, 87, 0.95); color: white; padding: 15px 30px;
+            border-radius: 30px; font-size: 22px; font-weight: bold; z-index: 2000;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3); opacity: 0; transition: opacity 0.3s; pointer-events: none;
+        }
+
+        /* 중앙 도착 알림 팝업 */
+        #arrival-toast {
+            position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(39, 174, 96, 0.95); color: white; padding: 25px 40px;
+            border-radius: 15px; text-align: center; box-shadow: 0 15px 40px rgba(0,0,0,0.5);
+            z-index: 3000; opacity: 0; transition: opacity 0.3s; pointer-events: none; border: 2px solid #2ecc71;
+        }
+
+        /* 화살표 마커 */
         .navi-arrow {
             width: 0; height: 0; border-left: 20px solid transparent; border-right: 20px solid transparent;
             border-bottom: 50px solid #ff4757; filter: drop-shadow(0px 5px 5px rgba(0,0,0,0.5));
             transform-origin: 50% 100%; transition: transform 0.1s linear;
         }
-
-        /* ★ [추가] 목적지 도착 알림 팝업 (Toast) ★ */
-        #arrival-toast {
-            position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%);
-            background: rgba(39, 174, 96, 0.95); color: white; padding: 25px 40px;
-            border-radius: 15px; text-align: center; box-shadow: 0 15px 40px rgba(0,0,0,0.4);
-            z-index: 3000; opacity: 0; transition: opacity 0.4s ease; pointer-events: none;
-            border: 2px solid #2ecc71;
-        }
-        #toast-title { font-size: 28px; font-weight: bold; margin-bottom: 10px; }
-        #toast-desc { font-size: 18px; line-height: 1.5; color: #e8f8f5; }
-        .toast-highlight { color: #f1c40f; font-weight: bold; font-size: 1.2em; }
     </style>
 </head>
 <body>
 
     <div id="arrival-toast">
-        <div id="toast-title">🚩 목적지 도착</div>
-        <div id="toast-desc">적재량 하차 완료</div>
+        <div style="font-size:28px; font-weight:bold; margin-bottom:10px;" id="toast-title">🚩 목적지 도착</div>
+        <div style="font-size:18px;" id="toast-desc">하차 완료</div>
     </div>
+    <div id="tbt-alert">⚠️ 잠시 후 우회전입니다.</div>
 
     <div id="setup-screen">
         <div class="setup-box">
-            <h2>🚚 에코 멀티-루트 설정</h2>
-            <p style="color: #666; font-size: 0.9em;">출발지와 6개의 목적지, 그리고 하차할 적재량(kg)을 입력하세요.</p>
-            
+            <h2>🚚 에코 내비게이션 설정</h2>
             <div style="font-weight:bold; margin-bottom:5px;">출발지</div>
             <div class="input-row"><input type="text" id="start-loc" value="울산대학교 정문"></div>
             
-            <div style="font-weight:bold; margin-bottom:5px; margin-top:15px;">목적지 리스트 (도착지 / 하차량 kg)</div>
-            <div id="dest-inputs">
-                </div>
+            <div style="font-weight:bold; margin-top:15px;">목적지 리스트 (도착지 / 하차량 kg)</div>
+            <div id="dest-inputs"></div>
 
-            <button class="btn-start" onclick="startNavigation()">최적 경로 분석 및 주행 시작</button>
-            <div id="loading-msg" style="display:none; text-align:center; color:#2e86de; margin-top:10px; font-weight:bold;">
-                📡 AI 최적 순서 계산 중...
-            </div>
+            <select id="route-type" class="route-select">
+                <option value="eco">🌿 에코 최적화 코스 (저탄소/비용절감)</option>
+                <option value="fast">🚀 무조건 빠른 코스 (탄소 무시)</option>
+            </select>
+
+            <button class="btn-start" onclick="startNavigation()">경로 탐색 및 주행 시작 (80km/h)</button>
+            <div id="loading-msg" style="display:none; text-align:center; color:#2e86de; margin-top:10px; font-weight:bold;">📡 경로 데이터 분석 중...</div>
         </div>
     </div>
 
@@ -107,10 +119,18 @@
         <div class="next-turn" id="hud-next-turn">안전 운행하세요</div>
     </div>
 
-    <div id="speed-controls">
-        <button class="speed-btn active" onclick="setSpeed(1, this)">1x (70km/h)</button>
-        <button class="speed-btn" onclick="setSpeed(5, this)">5x</button>
-        <button class="speed-btn" onclick="setSpeed(20, this)">20x</button>
+    <div id="right-panel">
+        <div class="speed-controls">
+            <button class="speed-btn active" onclick="setSpeed(1, this)">1x</button>
+            <button class="speed-btn" onclick="setSpeed(5, this)">5x</button>
+            <button class="speed-btn" onclick="setSpeed(20, this)">20x</button>
+            <button class="speed-btn" onclick="setSpeed(30, this)">30x</button>
+        </div>
+        <div class="eco-stats">
+            <div style="color:#7f8fa6; font-size:12px;">누적 에코 성과</div>
+            <div>🌱 탄소: <span class="eco-val" id="hud-co2">0.0</span> kg</div>
+            <div>💰 절약: <span class="eco-val" id="hud-money">0</span> 원</div>
+        </div>
     </div>
 
     <div id="bottom-panel">
@@ -123,12 +143,8 @@
             <div class="info-label">소요 시간</div>
         </div>
         <div class="info-block" style="border-left: 1px solid #dcdde1; padding-left: 20px;">
-            <div class="info-val" style="color:#2e86de;"><span id="hud-weight">0</span>kg</div>
-            <div class="info-label">현재 차량 무게</div>
-        </div>
-        <div class="info-block" style="border-left: 1px solid #dcdde1; padding-left: 20px;">
-            <div class="info-val" style="color:#2ed573;">다음 목적지</div>
-            <div class="info-label" id="hud-next-dest" style="font-size: 15px; color: #2f3640;">-</div>
+            <div class="info-val" style="color:#2e86de;"><span id="hud-weight">0</span><span style="font-size:16px;">kg</span></div>
+            <div class="info-label">현재 적재량</div>
         </div>
     </div>
 
@@ -139,31 +155,19 @@
         const map = L.map('map', { zoomControl: false }).setView([35.5443, 129.2558], 17);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(map);
 
-        const defaultDests = [
-            {n: "현대자동차", w: 2000}, {n: "매곡산단", w: 1500}, {n: "길천산단", w: 2500},
-            {n: "온산공단", w: 3000}, {n: "석유화학단지", w: 2000}, {n: "테크노산단", w: 1500}
-        ];
-        
-        const coordsMap = {
-            "울산대학교 정문": [129.2558, 35.5443], "현대자동차": [129.3785, 35.5352],
-            "매곡산단": [129.3512, 35.6552], "길천산단": [129.1121, 35.5901],
-            "온산공단": [129.3521, 35.4352], "석유화학단지": [129.3452, 35.4801], "테크노산단": [129.2812, 35.4652]
-        };
+        const defaultDests = [ {n: "현대자동차", w: 2000}, {n: "매곡산단", w: 1500}, {n: "길천산단", w: 2500}, {n: "온산공단", w: 3000}, {n: "석유화학단지", w: 2000}, {n: "테크노산단", w: 1500} ];
+        const coordsMap = { "울산대학교 정문": [129.2558, 35.5443], "현대자동차": [129.3785, 35.5352], "매곡산단": [129.3512, 35.6552], "길천산단": [129.1121, 35.5901], "온산공단": [129.3521, 35.4352], "석유화학단지": [129.3452, 35.4801], "테크노산단": [129.2812, 35.4652] };
 
         const destContainer = document.getElementById('dest-inputs');
         for(let i=0; i<6; i++){
-            destContainer.innerHTML += `
-                <div class="input-row">
-                    <input type="text" id="dest-name-${i}" value="${defaultDests[i].n}" placeholder="목적지 이름">
-                    <input type="number" id="dest-weight-${i}" value="${defaultDests[i].w}" placeholder="kg">
-                </div>
-            `;
+            destContainer.innerHTML += `<div class="input-row"><input type="text" id="dest-name-${i}" value="${defaultDests[i].n}"><input type="number" id="dest-weight-${i}" value="${defaultDests[i].w}"></div>`;
         }
 
         let truckMarker, arrowElement;
         let currentTotalWeight = 0;
         let simSpeed = 1;
-        let toastTimeout;
+        let isEcoMode = true;
+        let accumulatedDist = 0;
 
         function setSpeed(speed, btn) {
             simSpeed = speed;
@@ -171,32 +175,14 @@
             btn.classList.add('active');
         }
 
-        // ★ 알림 팝업 함수
-        function showArrivalAlert(destName, dropWeight, remainWeight) {
-            const toast = document.getElementById('arrival-toast');
-            document.getElementById('toast-title').innerHTML = `🚩 [${destName}] 도착!`;
-            document.getElementById('toast-desc').innerHTML = `
-                📦 하차량: <span class="toast-highlight">${dropWeight.toLocaleString()}kg</span><br>
-                📉 남은 적재량: <span class="toast-highlight">${remainWeight.toLocaleString()}kg</span>
-            `;
-            
-            toast.style.opacity = 1;
-            
-            // 기존 타이머 지우고 4초 뒤에 팝업 닫기
-            clearTimeout(toastTimeout);
-            toastTimeout = setTimeout(() => {
-                toast.style.opacity = 0;
-            }, 4000);
-        }
-
         async function startNavigation() {
             document.getElementById('loading-msg').style.display = 'block';
+            isEcoMode = document.getElementById('route-type').value === 'eco';
 
-            let waypoints = [];
-            const startName = document.getElementById('start-loc').value;
-            waypoints.push(coordsMap[startName] || [129.2558, 35.5443]); 
-
+            let waypoints = [[129.2558, 35.5443]]; // 시작
             let destInfo = [];
+            currentTotalWeight = 0;
+
             for(let i=0; i<6; i++){
                 const name = document.getElementById(`dest-name-${i}`).value;
                 const weight = parseInt(document.getElementById(`dest-weight-${i}`).value);
@@ -205,12 +191,14 @@
                 destInfo.push({name, weight});
             }
 
-            // 시뮬레이션용 가상 에코 최적화 배열 (울산대 출발 -> 테크노 -> 온산 -> 석유 -> 현대 -> 매곡 -> 길천)
-            const optOrder = [0, 6, 4, 5, 1, 2, 3];
+            // 경로 선택 로직
+            const ecoOrder = [0, 6, 4, 5, 1, 2, 3]; // 지형 고려 (추천)
+            const fastOrder = [0, 1, 2, 6, 5, 4, 3]; // 단순 최단거리
+            const optOrder = isEcoMode ? ecoOrder : fastOrder;
+
             let optWaypoints = optOrder.map(idx => waypoints[idx]);
             let optDests = optOrder.slice(1).map(idx => destInfo[idx-1]);
 
-            // OSRM 호출
             const coordsStr = optWaypoints.map(c => `${c[0]},${c[1]}`).join(';');
             const url = `https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson&steps=true`;
             
@@ -218,12 +206,12 @@
             const data = await res.json();
             
             document.getElementById('setup-screen').style.display = 'none';
-            document.getElementById('top-navi-panel').style.display = 'flex';
-            document.getElementById('speed-controls').style.display = 'flex';
+            document.getElementById('top-navi-panel').style.display = 'block';
+            document.getElementById('right-panel').style.display = 'flex';
             document.getElementById('bottom-panel').style.display = 'flex';
 
             const polyCoords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
-            L.polyline(polyCoords, {color: '#2e86de', weight: 8, opacity: 0.8}).addTo(map);
+            L.polyline(polyCoords, {color: isEcoMode ? '#2ed573' : '#ff4757', weight: 8, opacity: 0.8}).addTo(map);
 
             const icon = L.divIcon({ html: '<div class="navi-arrow" id="arrow-icon"></div>', className: '', iconSize: [40, 50], iconAnchor: [20, 45] });
             truckMarker = L.marker(polyCoords[0], {icon: icon}).addTo(map);
@@ -233,27 +221,35 @@
             runRealisticSimulation(data.routes[0], optDests);
         }
 
-        function getDirectionArrow(modifier) {
-            const dirs = { 'left': '⬅️ 좌회전', 'right': '➡️ 우회전', 'slight left': '↖️ 좌측 방향', 'slight right': '↗️ 우측 방향', 'straight': '⬆️ 직진', 'uturn': '🔄 유턴', 'arrive': '🚩 도착' };
-            return dirs[modifier] || '⬆️ 직진';
+        // TBT 텍스트 및 이모지 정확도 개선
+        function getManeuverInfo(modifier, type) {
+            if(type === 'arrive') return { txt: '목적지 도착', arrow: '🚩' };
+            const m = modifier || '';
+            if(m.includes('right')) return { txt: '우회전', arrow: '➡️' };
+            if(m.includes('left')) return { txt: '좌회전', arrow: '⬅️' };
+            if(m.includes('uturn')) return { txt: '유턴', arrow: '🔄' };
+            return { txt: '직진', arrow: '⬆️' };
         }
 
         function runRealisticSimulation(routeData, destList) {
             let allCoords = routeData.geometry.coordinates.map(c => [c[1], c[0]]);
             let legs = routeData.legs;
             
-            const speed_ms = 19.4; // 시속 약 70km/h
+            const speed_ms = 22.22; // ★ 시속 80km/h로 상향
             const tick_ms = 100;
             
             let currentCoordIdx = 0, currentLegIdx = 0, currentStepIdx = 0;
             let currentPos = L.latLng(allCoords[0]);
             let stepDistLeft = legs[0].steps[0].distance;
             
-            document.getElementById('hud-next-dest').innerText = destList[0].name;
+            let totalRemainDist = routeData.distance; // 전체 남은 거리 (ETA 계산용)
+            let alertShown = false; // "잠시 후" 알림 중복 방지
 
             const simTimer = setInterval(() => {
                 let distToMove = speed_ms * (tick_ms / 1000) * simSpeed;
+                accumulatedDist += distToMove;
 
+                // 차량 이동 로직
                 while(distToMove > 0 && currentCoordIdx < allCoords.length - 1) {
                     let p1 = currentPos;
                     let p2 = L.latLng(allCoords[currentCoordIdx + 1]);
@@ -273,58 +269,88 @@
                 truckMarker.setLatLng(currentPos);
                 map.setView(currentPos, 17, {animate: false});
 
+                // ★ 화살표 정확한 회전 (Bearing)
                 if(currentCoordIdx < allCoords.length - 1) {
-                    let dy = allCoords[currentCoordIdx + 1][0] - currentPos.lat;
-                    let dx = allCoords[currentCoordIdx + 1][1] - currentPos.lng;
-                    let angle = Math.atan2(dx, dy) * 180 / Math.PI;
+                    let p1 = allCoords[currentCoordIdx];
+                    let p2 = allCoords[currentCoordIdx + 1];
+                    let dx = p2[1] - p1[1]; // 경도 차이
+                    let dy = p2[0] - p1[0]; // 위도 차이
+                    let angle = Math.atan2(dx, dy) * 180 / Math.PI; // 북쪽 기준 방위각
                     if(arrowElement) arrowElement.style.transform = `rotate(${angle}deg)`;
                 }
 
-                stepDistLeft -= (speed_ms * (tick_ms / 1000) * simSpeed);
+                // 거리 차감
+                let movedDist = speed_ms * (tick_ms / 1000) * simSpeed;
+                stepDistLeft -= movedDist;
+                totalRemainDist -= movedDist;
+
+                // ★ 에코 성과 실시간 업데이트 (에코 모드일 때만 돈/탄소 절감)
+                if(isEcoMode) {
+                    let kmDriven = accumulatedDist / 1000;
+                    document.getElementById('hud-co2').innerText = (kmDriven * 0.15).toFixed(1); // 대략 km당 0.15kg 절감
+                    document.getElementById('hud-money').innerText = Math.round(kmDriven * 120).toLocaleString(); // km당 120원 절감
+                }
+
+                // ★ "잠시 후" 알림 로직 (회전 지점 300m 이내 진입 시)
+                let currentStep = legs[currentLegIdx].steps[currentStepIdx];
+                if(currentStep && stepDistLeft < 300 && stepDistLeft > 50 && !alertShown) {
+                    let info = getManeuverInfo(currentStep.maneuver.modifier, currentStep.maneuver.type);
+                    if(info.txt !== '직진') {
+                        let alertBox = document.getElementById('tbt-alert');
+                        alertBox.innerText = `⚠️ 잠시 후 ${info.txt}입니다.`;
+                        alertBox.style.opacity = 1;
+                        alertShown = true;
+                        setTimeout(() => { alertBox.style.opacity = 0; }, 3000 / simSpeed); // 알림 3초 뒤 사라짐
+                    }
+                }
 
                 // 스텝(안내 지점) 통과 로직
                 if(stepDistLeft <= 0) {
+                    alertShown = false; // 알림 초기화
                     currentStepIdx++;
                     
-                    // ★ 특정 목적지(Leg)에 도착했을 때!
-                    if(currentStepIdx >= legs[currentLegIdx].steps.length) {
+                    if(currentStepIdx >= legs[currentLegIdx].steps.length) { // 목적지 도착
                         let currentDest = destList[currentLegIdx];
-                        let dropWeight = currentDest.weight;
-                        currentTotalWeight -= dropWeight; // 적재량 감소!
-                        
+                        currentTotalWeight -= currentDest.weight;
                         document.getElementById('hud-weight').innerText = currentTotalWeight.toLocaleString();
                         
-                        // 화면 중앙에 도착 알림 팝업 띄우기
-                        showArrivalAlert(currentDest.name, dropWeight, currentTotalWeight);
+                        // 중앙 도착 알림
+                        let toast = document.getElementById('arrival-toast');
+                        document.getElementById('toast-title').innerText = `🚩 ${currentDest.name} 도착`;
+                        document.getElementById('toast-desc').innerHTML = `하차: <span style="color:#f1c40f">${currentDest.weight}kg</span> / 남은적재량: ${currentTotalWeight}kg`;
+                        toast.style.opacity = 1;
+                        setTimeout(() => { toast.style.opacity = 0; }, 4000);
                         
                         currentLegIdx++;
                         currentStepIdx = 0;
                         
-                        // 모든 목적지 종료
                         if(currentLegIdx >= legs.length) {
                             clearInterval(simTimer);
-                            document.getElementById('hud-road').innerText = "모든 운송을 완료했습니다!";
+                            document.getElementById('hud-road').innerText = "안내를 종료합니다.";
                             document.getElementById('hud-arrow').innerText = "🏁";
-                            document.getElementById('hud-next-dest').innerText = "운송 종료";
                             return;
-                        } else {
-                            // 다음 목적지 세팅
-                            document.getElementById('hud-next-dest').innerText = destList[currentLegIdx].name;
                         }
                     }
                     stepDistLeft = legs[currentLegIdx].steps[currentStepIdx] ? legs[currentLegIdx].steps[currentStepIdx].distance : 0;
                 }
 
+                // UI 텍스트 갱신 (ETA, 남은 거리 등)
                 if(currentLegIdx < legs.length && legs[currentLegIdx].steps[currentStepIdx]) {
-                    let currentStep = legs[currentLegIdx].steps[currentStepIdx];
                     let distShow = Math.max(0, stepDistLeft);
-                    
                     document.getElementById('hud-dist').innerText = distShow > 1000 ? (distShow/1000).toFixed(1) : distShow.toFixed(0);
                     document.getElementById('hud-unit').innerText = distShow > 1000 ? "km" : "m";
                     
-                    let dirTxt = getDirectionArrow(currentStep.maneuver.modifier);
-                    document.getElementById('hud-arrow').innerText = dirTxt.split(' ')[0]; 
-                    document.getElementById('hud-road').innerText = `${dirTxt.split(' ')[1] || '직진'} (${currentStep.name || "일반 도로"})`;
+                    let info = getManeuverInfo(legs[currentLegIdx].steps[currentStepIdx].maneuver.modifier, legs[currentLegIdx].steps[currentStepIdx].maneuver.type);
+                    document.getElementById('hud-arrow').innerText = info.arrow;
+                    document.getElementById('hud-road').innerText = `${info.txt} (${legs[currentLegIdx].steps[currentStepIdx].name || "일반 도로"})`;
+
+                    // ETA 계산 (총 남은 거리 / 80km/h)
+                    let remainMin = Math.max(1, Math.ceil((totalRemainDist / 1000) / 80 * 60));
+                    document.getElementById('hud-min').innerText = remainMin;
+                    
+                    let now = new Date();
+                    now.setMinutes(now.getMinutes() + remainMin);
+                    document.getElementById('hud-time').innerText = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
                 }
 
             }, tick_ms);
