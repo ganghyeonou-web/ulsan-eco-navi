@@ -74,7 +74,7 @@
         <div class="end-title">🏁 주행을 마쳤습니다.</div>
         <div style="font-size:15px; color:#555; margin-bottom:20px;">안전하게 모든 운송 및 하차를 완료했습니다.</div>
         <div style="background:#f1f2f6; padding:15px; border-radius:10px; margin-bottom:20px; text-align:left;">
-            <div style="margin-bottom:8px;">🌱 에코 탄소 절감: <span id="r-co2" style="font-weight:bold; color:#27ae60;">0kg</span></div>
+            <div style="margin-bottom:8px;">🌱 에코 탄소 절감: <span id="r-co2" style="font-weight:bold; color:#27ae60;">0.0kg</span></div>
             <div>💰 유류비 총 절약: <span id="r-money" style="font-weight:bold; color:#2980b9;">0원</span></div>
         </div>
         <button style="width:100%; padding:15px; border:none; background:#2e86de; color:white; font-size:16px; border-radius:8px; cursor:pointer; font-weight:bold;" onclick="location.reload()">새 경로 탐색</button>
@@ -156,11 +156,10 @@
 
         const coordsMap = { "울산대학교 정문": [129.2558, 35.5443], "현대자동차": [129.3785, 35.5352], "매곡산단": [129.3512, 35.6552], "길천산단": [129.1121, 35.5901], "온산공단": [129.3521, 35.4352], "석유화학단지": [129.3452, 35.4801], "테크노산단": [129.2812, 35.4652], "태화강역": [129.3541, 35.5396], "울산시청": [129.3114, 35.5383] };
         
-        // 초기 목적지 세팅 (시간 데이터 포함)
         const defaultDests = [ 
             {n: "현대자동차", w: 2000, t: "14:30"}, 
-            {n: "매곡산단", w: 1500, t: ""}, // 마감시간 없음
-            {n: "길천산단", w: 2500, t: "11:00"} // 마감시간 촉박
+            {n: "매곡산단", w: 1500, t: ""}, 
+            {n: "길천산단", w: 2500, t: "11:00"} 
         ];
 
         const destContainer = document.getElementById('dest-inputs');
@@ -192,7 +191,7 @@
         }
         function updateBaseSpeed(val) { baseKmh = parseInt(val) || 70; }
 
-        // ★ [핵심 1] 진짜 고도 API (가장 안정적인 Open-Meteo 사용)
+        // ★ 진짜 해발 고도 데이터 수신 (Open-Meteo)
         async function fetchRealElevations(waypointsArray) {
             const lats = waypointsArray.map(wp => wp[1]).join(',');
             const lngs = waypointsArray.map(wp => wp[0]).join(',');
@@ -201,23 +200,21 @@
             try {
                 const res = await fetch(url);
                 const data = await res.json();
-                console.log("진짜 해발 고도 데이터 수신 완료:", data.elevation);
-                return data.elevation; // 진짜 고도 배열 반환
+                console.log("✅ [API 통신 성공] 실제 해발 고도 배열(m):", data.elevation);
+                return data.elevation; 
             } catch(e) {
                 console.error("고도 API 에러", e);
                 return waypointsArray.map(() => 0); 
             }
         }
 
-        // ★ [핵심 2] 마감 시간에 따른 스마트 최적화 로직
+        // 시간 마감(Time Window) 정렬 로직
         function optimizeRouteWithTimeWindows(rawDests) {
-            // 시간(deadline)이 있는 것과 없는 것을 분리
             let withTime = [];
             let noTime = [];
             
             rawDests.forEach(d => {
                 if(d.time) {
-                    // 시간을 분(minutes)으로 변환하여 정렬에 사용
                     let parts = d.time.split(':');
                     d.mins = parseInt(parts[0]) * 60 + parseInt(parts[1]);
                     withTime.push(d);
@@ -226,12 +223,8 @@
                 }
             });
 
-            // 1. 마감시간이 있는 곳을 시간 순서대로 최우선 배치
             withTime.sort((a, b) => a.mins - b.mins);
-            
-            // 2. 마감시간이 없는 곳은 그 뒤에 거리/에코 상관없이 배치 (실제로는 TSP 로직이 들어가지만 시연용 배열 합치기)
-            let optimized = withTime.concat(noTime);
-            return optimized;
+            return withTime.concat(noTime);
         }
 
         async function startNavigation() {
@@ -254,7 +247,6 @@
                 });
             }
 
-            // 마감시간 기반 최적화 수행
             globalDestInfo = optimizeRouteWithTimeWindows(rawDests);
 
             let waypoints = [[129.2558, 35.5443]]; // 출발지
@@ -321,7 +313,7 @@
             runSimulationEngine(data.routes[0], destList, realElevations);
         }
 
-        // ★ [핵심 3] 번역의 완벽화 (TBT 정확도 향상)
+        // ★ [수정됨] 완벽한 방향 번역 매핑
         function getManeuverInfo(step) {
             let mod = step.maneuver.modifier || '';
             let type = step.maneuver.type || '';
@@ -330,14 +322,26 @@
             if (type === 'uturn' || mod.includes('uturn')) return { txt: '유턴', arrow: '🔄' };
             if (type === 'roundabout') return { txt: '회전교차로 진입', arrow: '🔄' };
             
-            if (mod.includes('slight right')) return { txt: '우측 방향', arrow: '↗️' };
-            if (mod.includes('slight left')) return { txt: '좌측 방향', arrow: '↖️' };
-            if (mod.includes('sharp right')) return { txt: '우측 급커브', arrow: '⤵️' };
-            if (mod.includes('sharp left')) return { txt: '좌측 급커브', arrow: '⤴️' };
-            if (mod.includes('right')) return { txt: '우회전', arrow: '➡️' };
-            if (mod.includes('left')) return { txt: '좌회전', arrow: '⬅️' };
+            if (mod === 'slight right') return { txt: '우측 방향', arrow: '↗️' };
+            if (mod === 'slight left') return { txt: '좌측 방향', arrow: '↖️' };
+            if (mod === 'sharp right') return { txt: '우측 급커브', arrow: '⤵️' };
+            if (mod === 'sharp left') return { txt: '좌측 급커브', arrow: '⤴️' };
+            if (mod === 'right') return { txt: '우회전', arrow: '➡️' };
+            if (mod === 'left') return { txt: '좌회전', arrow: '⬅️' };
             
             return { txt: '직진', arrow: '⬆️' };
+        }
+
+        function forceStopSimulation() {
+            clearInterval(simTimer);
+            document.getElementById('hud-road').innerText = "운행 종료";
+            document.getElementById('hud-arrow').innerText = "🏁";
+            
+            setTimeout(() => {
+                document.getElementById('end-modal').style.display = 'block';
+                document.getElementById('r-co2').innerText = totalCo2Saved.toFixed(1) + "kg";
+                document.getElementById('r-money').innerText = totalMoneySaved.toLocaleString() + "원";
+            }, 1000);
         }
 
         function runSimulationEngine(routeData, destList, realElevations) {
@@ -352,6 +356,12 @@
             let alertShown = false;
 
             simTimer = setInterval(() => {
+                // ★ [수정됨] 강제 종료 검사 (좌표 배열의 끝에 도달했을 때 무조건 멈춤)
+                if (currentCoordIdx >= allCoords.length - 1 || currentLegIdx >= legs.length) {
+                    forceStopSimulation();
+                    return;
+                }
+
                 let speed_ms = baseKmh * (1000 / 3600); 
                 let movedDist = speed_ms * (tick_ms / 1000) * simSpeed;
                 accumulatedDist += movedDist;
@@ -385,7 +395,7 @@
                 stepDistLeft -= movedDist;
                 totalRemainDist -= movedDist;
 
-                // 실제 고도(Open-Meteo API) 연동 경사도 계산
+                // ★ [수정됨] 실제 고도 기반 경사도 민감도 조정 (0.3% 경사도부터 오르막/내리막 인식)
                 if(isEcoMode && currentLegIdx < realElevations.length - 1) {
                     let kmDriven = movedDist / 1000;
                     let legDistance = legs[currentLegIdx].distance || 1;
@@ -395,11 +405,12 @@
                     let badge = document.getElementById('slope-badge');
                     let baseSavings = 0.15 * kmDriven; 
 
-                    if (slope > 0.015) { 
-                        baseSavings -= (slope * 2 * kmDriven);
+                    // 임계값을 0.003 (0.3% 경사)로 낮추어 도심지/산단 고도차를 확실하게 잡아냄
+                    if (slope > 0.003) { 
+                        baseSavings -= (Math.abs(slope) * 5 * kmDriven);
                         badge.innerText = "📈 오르막"; badge.className = "slope-badge slope-up";
-                    } else if (slope < -0.015) { 
-                        baseSavings += (Math.abs(slope) * 2 * kmDriven);
+                    } else if (slope < -0.003) { 
+                        baseSavings += (Math.abs(slope) * 5 * kmDriven);
                         badge.innerText = "📉 내리막"; badge.className = "slope-badge slope-down";
                     } else {
                         badge.innerText = "➖ 평지"; badge.className = "slope-badge";
@@ -425,7 +436,7 @@
                     }
                 }
 
-                // ★ [핵심 4] 끝나지 않는 버그 해결 (강제 종료 명시)
+                // 스텝 통과 및 도착 처리
                 while(stepDistLeft <= 0 && currentLegIdx < legs.length) {
                     alertShown = false;
                     currentStepIdx++;
@@ -444,18 +455,10 @@
                         currentLegIdx++;
                         currentStepIdx = 0;
                         
-                        // ★ 최종 목적지 도달 시 확실한 정지 및 모달 팝업
+                        // 모든 목적지 통과 시 확실히 정지
                         if(currentLegIdx >= legs.length) {
-                            clearInterval(simTimer); // 타이머 완벽 정지
-                            truckMarker.setLatLng(allCoords[allCoords.length - 1]); // 끝 좌표로 고정
-                            document.getElementById('hud-road').innerText = "운행 종료";
-                            
-                            setTimeout(() => {
-                                document.getElementById('end-modal').style.display = 'block';
-                                document.getElementById('r-co2').innerText = totalCo2Saved.toFixed(1) + "kg";
-                                document.getElementById('r-money').innerText = totalMoneySaved.toLocaleString() + "원";
-                            }, 1000);
-                            return; // 함수 완전 이탈
+                            forceStopSimulation();
+                            return;
                         }
                     }
                     if (currentLegIdx < legs.length && legs[currentLegIdx].steps[currentStepIdx]) {
